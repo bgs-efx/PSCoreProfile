@@ -73,8 +73,9 @@ Import-Module posh-git
 # Add SSH Keys
 If ($IsMacOS) { ssh-add -K }
 
-# Work around an issue with Chef's Knife command on PowerShell
+# Work around an issue with Chef on PowerShell
 function knife { bash -c "knife $($args -join ' ')" }
+function chef { bash -c "chef $($args -join ' ')" }
 
 # Configure the Prompt
 $GitPromptSettings.DefaultPromptAbbreviateHomeDirectory = $true
