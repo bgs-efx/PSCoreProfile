@@ -79,6 +79,8 @@ function chef { bash -c "chef $($args -join ' ')" }
 
 # Configure the Prompt
 $GitPromptSettings.DefaultPromptAbbreviateHomeDirectory = $true
+$GitPromptSettings.DefaultPromptPrefix =
+  '$((Get-AWSSession) -split "@" | Select-Object -Last 1) '
 
 # Configure PSReadline
 
