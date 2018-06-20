@@ -46,13 +46,46 @@ Set-Alias -Name setenv -Value Set-EnvironmentVariable
 # ########################################
 # Configure the PATH Environment Variable
 # ########################################
+
+# Add all paths from /etc/paths[.d]
 Invoke-Expression $(& $PATH_HELPER -c)
+
+# Ensure that rbenv is in front of /usr/local/bin.
+$env:PATH = (
+              $script:SAFE_HOME `
+              | Join-Path -ChildPath '.rbenv' `
+              | Join-Path -ChildPath 'shims'
+            ),
+            $env:PATH `
+            -join ':'
+
+# Add node.js to the PATH.
 $env:PATH = $env:PATH,
             (
               $script:SAFE_HOME `
               | Join-Path -ChildPath 'node_modules' `
               | Join-Path -ChildPath 'livedown' `
               | Join-Path -ChildPath 'bin'
+            ) `
+            -join ':'
+
+# Add XDG bin directory to the PATH
+$env:PATH = $env:PATH,
+            (
+              $script:SAFE_HOME `
+              | Join-Path -ChildPath '.local' `
+              | Join-Path -ChildPath 'bin'
+            ) `
+            -join ':'
+
+
+# #######################################
+# Configure Go
+# #######################################
+$env:GOPATH = $script:SAFE_HOME | Join-Path -ChildPath 'Projects'
+$env:PATH = $env:PATH,
+            (
+              ($env:GOPATH | Join-Path -ChildPath 'bin')
             ) `
             -join ':'
 
