@@ -26,6 +26,11 @@ New-Variable -Name PATH_HELPER `
              -Scope Script `
              -Value (Join-Path -Path $LIBEXEC -ChildPath 'path_helper')
 
+New-Variable -Name PATH_VARIABLE_SEPARATOR `
+             -Option Constant `
+             -Scope Script `
+             -Value $(If ($IsWindows) {';'} else {':'})
+
 
 # ########################################
 # Functions
@@ -47,47 +52,111 @@ Set-Alias -Name setenv -Value Set-EnvironmentVariable
 # Configure the PATH Environment Variable
 # ########################################
 
-# Add all paths from /etc/paths[.d]
-Invoke-Expression $(& $PATH_HELPER -c)
+######################
+# macOS specific setup
+######################
+If ($IsMacOS)
+{
+  # Add all paths from /etc/paths[.d]
+  Invoke-Expression $(& $PATH_HELPER -c)
 
-# Ensure that rbenv is in front of /usr/local/bin.
-$env:PATH = (
-              $script:SAFE_HOME `
-              | Join-Path -ChildPath '.rbenv' `
-              | Join-Path -ChildPath 'shims'
-            ),
-            $env:PATH `
-            -join ':'
+  # Ensure that rbenv is in front of /usr/local/bin.
+  $env:PATH = (
+                $script:SAFE_HOME `
+                | Join-Path -ChildPath '.rbenv' `
+                | Join-Path -ChildPath 'shims'
+              ),
+              $env:PATH `
+              -join $PATH_VARIABLE_SEPARATOR
 
-# Add node.js to the PATH.
-$env:PATH = $env:PATH,
-            (
-              $script:SAFE_HOME `
-              | Join-Path -ChildPath 'node_modules' `
-              | Join-Path -ChildPath 'livedown' `
-              | Join-Path -ChildPath 'bin'
-            ) `
-            -join ':'
+  $env:PATH = $env:PATH,
+              (
+                $script:SAFE_HOME `
+                | Join-Path -ChildPath 'node_modules' `
+                | Join-Path -ChildPath 'livedown' `
+                | Join-Path -ChildPath 'bin'
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
 
-# Add XDG bin directory to the PATH
-$env:PATH = $env:PATH,
-            (
-              $script:SAFE_HOME `
-              | Join-Path -ChildPath '.local' `
-              | Join-Path -ChildPath 'bin'
-            ) `
-            -join ':'
+  # Add XDG bin directory to the PATH
+  $env:PATH = $env:PATH,
+              (
+                $script:SAFE_HOME `
+                | Join-Path -ChildPath '.local' `
+                | Join-Path -ChildPath 'bin'
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
+
+  # Add GO to the path
+  $env:PATH = $env:PATH,
+              (
+                ($env:GOPATH | Join-Path -ChildPath 'bin')
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
+}
+
+########################
+# Windows specific setup
+########################
+If ($IsWindows)
+{
+  # Add node.js to the PATH.
+  $env:PATH = $env:PATH,
+              (
+                $env:LocalAppData `
+                | Join-Path -ChildPath 'Programs' `
+                | Join-Path -ChildPath 'Node' `
+                | Join-Path -ChildPath 'node-v8.11.4-win-x64'
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
+
+  $env:PATH = $env:PATH,
+              (
+                $env:LocalAppData `
+                | Join-Path -ChildPath 'Yarn' `
+                | Join-Path -ChildPath 'bin'
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
 
 
-# #######################################
+  # Add Python3 to the PATH.
+  $env:PATH = $env:PATH,
+              (
+                $env:LocalAppData `
+                | Join-Path -ChildPath 'Programs' `
+                | Join-Path -ChildPath 'Python' `
+                | Join-Path -ChildPath 'Python37'
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
+
+  $env:PATH = $env:PATH,
+              (
+                $env:LocalAppData `
+                | Join-Path -ChildPath 'Programs' `
+                | Join-Path -ChildPath 'Python' `
+                | Join-Path -ChildPath 'Python37' `
+                | Join-Path -ChildPath 'Scripts'
+              ) `
+              -join $PATH_VARIABLE_SEPARATOR
+}
+
+##############
 # Configure Go
-# #######################################
+##############
 $env:GOPATH = $script:SAFE_HOME | Join-Path -ChildPath 'Projects'
-$env:PATH = $env:PATH,
-            (
-              ($env:GOPATH | Join-Path -ChildPath 'bin')
-            ) `
-            -join ':'
+
+
+###############
+# Configure Git
+###############
+
+# Ensure that Git is using the system ssh
+Get-Command ssh `
+| Select-Object -ExpandProperty Source `
+| Set-Content Env:/GIT_SSH
+
+# Ensure that posh-git is loaded
+Import-Module posh-git
 
 
 # #######################################
@@ -95,13 +164,10 @@ $env:PATH = $env:PATH,
 # #######################################
 
 # Set Editor
-$env:EDITOR = (Get-Command -Name vim | Select-Object -ExpandProperty Source)
+$env:EDITOR = (Get-Command -Name nvim | Select-Object -ExpandProperty Source)
 
 # Disable List Truncation.
 $FormatEnumerationLimit =-1
-
-# Ensure that posh-git is loaded
-Import-Module posh-git
 
 # Add SSH Keys
 If ($IsMacOS) { ssh-add -K }
